@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Mongo.Demo.Core.Repository
+namespace Mongo.Demo.Core.Attributes
 {
     /// <inheritdoc />
     /// <summary>Specifies the database table that a class is mapped to.</summary>

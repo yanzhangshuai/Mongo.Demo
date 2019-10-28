@@ -3,21 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Mongo.Demo.Core.Attributes;
 using Mongo.Demo.Core.provider;
+using Mongo.Demo.Core.Repository;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
-namespace Mongo.Demo.Core.Repository
+namespace Mongo.Demo.Core
 {
     /// <summary>
     ///     Implements IRepository for MongoDB.
     /// </summary>
     /// <typeparam name="TEntity">Type of the Entity for this repository</typeparam>
-    public class MongoRepositoryBase<TEntity> : MongoRepositoryBase<TEntity, ObjectId>, IMongoRepository<TEntity> where TEntity : class, IEntity<ObjectId>
+    public class MongoRepositoryBase<TEntity> : MongoRepositoryBase<TEntity, ObjectId>, IMongoRepository<TEntity>
+        where TEntity : class, IEntity<ObjectId>
     {
         public MongoRepositoryBase(IMongoDatabaseProvider databaseProvider) : base(databaseProvider)
         {
-            
         }
     }
 
@@ -25,14 +27,16 @@ namespace Mongo.Demo.Core.Repository
         where TEntity : class, IEntity<TPrimaryKey>
     {
         private readonly IMongoDatabaseProvider _databaseProvider;
+
         public MongoRepositoryBase(IMongoDatabaseProvider databaseProvider)
         {
             _databaseProvider = databaseProvider;
         }
-        
+
         private IMongoDatabase Database => _databaseProvider.Database;
 
-        public IMongoCollection<TEntity> Collection => Database.GetCollection<TEntity>(typeof(TEntity).GetCollectionName());
+        public IMongoCollection<TEntity> Collection =>
+            Database.GetCollection<TEntity>(typeof(TEntity).GetCollectionName());
 
         public IQueryable<TEntity> GetAll()
         {
@@ -45,14 +49,32 @@ namespace Mongo.Demo.Core.Repository
             return GetAll().ToList();
         }
 
-        public virtual IList<TEntity> GetAllList(Expression<Func<TEntity, bool>> predicate)
+        public virtual IList<TEntity> GetAllList(Expression<Func<TEntity, bool>> predicate, FindOptions options)
         {
-            return Collection.Find(predicate).ToList();
+            return GetAllList(new ExpressionFilterDefinition<TEntity>(predicate), options = null);
         }
 
-        public virtual async Task<IList<TEntity>> GetAllListAsync(Expression<Func<TEntity, bool>> predicate)
+        /// <summary>
+        ///     使用指定的<paramref name="filter"/>获取实体
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="options"></param>
+        /// <returns></returns>
+        public virtual IList<TEntity> GetAllList(FilterDefinition<TEntity> filter, FindOptions options = null)
         {
-            return await Collection.Find(predicate).ToListAsync();
+            return Collection.Find(filter, options).ToList();
+        }
+
+        public virtual async Task<IList<TEntity>> GetAllListAsync(Expression<Func<TEntity, bool>> predicate,
+            FindOptions options = null)
+        {
+            return await Collection.Find(predicate, options).ToListAsync();
+        }
+
+        public virtual async Task<IList<TEntity>> GetAllListAsync(FilterDefinition<TEntity> filter,
+            FindOptions options = null)
+        {
+            return await Collection.Find(filter, options).ToListAsync();
         }
 
         public virtual T Query<T>(Func<IQueryable<TEntity>, T> queryMethod)
@@ -63,7 +85,9 @@ namespace Mongo.Demo.Core.Repository
         public virtual TEntity Get(TPrimaryKey id)
         {
             var entity = FirstOrDefault(id);
-            if (entity == null)throw new EntityNotFoundException("There is no such an entity with given primary key. Entity type: " + typeof(TEntity).FullName + ", primary key: " + id);
+            if (entity == null)
+                throw new EntityNotFoundException("There is no such an entity with given primary key. Entity type: " +
+                                                  typeof(TEntity).FullName + ", primary key: " + id);
             return entity;
         }
 
@@ -96,64 +120,66 @@ namespace Mongo.Demo.Core.Repository
             return Collection.Find(predicate).FirstOrDefaultAsync();
         }
 
-        public virtual IList<TOutEntity> Aggregate<TOutEntity>(PipelineDefinition<TEntity, TOutEntity> pipelineDefinition, AggregateOptions options = null)
+        public virtual IList<TOutEntity> Aggregate<TOutEntity>(
+            PipelineDefinition<TEntity, TOutEntity> pipelineDefinition, AggregateOptions options = null)
         {
-            return Collection.Aggregate(pipelineDefinition,options).ToList();
+            return Collection.Aggregate(pipelineDefinition, options).ToList();
         }
 
-        public virtual TEntity Insert(TEntity entity)
+        public virtual TEntity Insert(TEntity entity, InsertOneOptions options = null)
         {
-            Collection.InsertOne(entity, new InsertOneOptions());
+            Collection.InsertOne(entity, options);
             return entity;
         }
 
-        public virtual async Task<TEntity> InsertAsync(TEntity entity)
+        public virtual async Task<TEntity> InsertAsync(TEntity entity, InsertOneOptions options = null)
         {
-            await Collection.InsertOneAsync(entity);
+            await Collection.InsertOneAsync(entity, options);
             return entity;
         }
 
-        public virtual void InsertMany(IEnumerable<TEntity> entities)
+        public virtual void InsertMany(IEnumerable<TEntity> entities, InsertManyOptions options = null)
         {
-             Collection.InsertMany(entities);
+            Collection.InsertMany(entities, options);
         }
 
-        public virtual async Task InsertManyAsync(IEnumerable<TEntity> entities)
+        public virtual async Task InsertManyAsync(IEnumerable<TEntity> entities, InsertManyOptions options = null)
         {
-            await Collection.InsertManyAsync(entities);
+            await Collection.InsertManyAsync(entities, options);
         }
 
-        public virtual void ReplaceOne(FilterDefinition<TEntity> filter, TEntity entity)
+        public virtual void ReplaceOne(FilterDefinition<TEntity> filter, TEntity entity, UpdateOptions options = null)
         {
-            Collection.ReplaceOne(filter, entity);
+            Collection.ReplaceOne(filter, entity, options);
         }
 
-        public virtual async Task ReplaceOneAsync(FilterDefinition<TEntity> filter, TEntity entity)
+        public virtual async Task ReplaceOneAsync(FilterDefinition<TEntity> filter, TEntity entity,
+            UpdateOptions options = null)
         {
-            await Collection.ReplaceOneAsync(filter, entity);
+            await Collection.ReplaceOneAsync(filter, entity, options);
         }
 
-        public virtual TPrimaryKey InsertAndGetId(TEntity entity)
+        public virtual TPrimaryKey InsertAndGetId(TEntity entity, InsertOneOptions options = null)
         {
-            return Insert(entity).Id;
+            return Insert(entity, options).Id;
         }
 
-        public virtual async  Task<TPrimaryKey> InsertAndGetIdAsync(TEntity entity)
+        public virtual async Task<TPrimaryKey> InsertAndGetIdAsync(TEntity entity, InsertOneOptions options = null)
         {
-            return (await InsertAsync(entity)).Id;
+            return (await InsertAsync(entity, options)).Id;
         }
 
-        public virtual TEntity Update(TEntity entity,UpdateOptions options = null)
+        public virtual TEntity Update(TEntity entity, UpdateOptions options = null)
         {
             var filter = Builders<TEntity>.Filter.Eq(e => e.Id, entity.Id);
-            Collection.ReplaceOne(filter, entity,options);
+            Collection.ReplaceOne(filter, entity, options);
             return entity;
         }
 
-        public virtual async  Task<TEntity> UpdateAsync(TEntity entity,UpdateOptions options = null)
+        public virtual async Task<TEntity> UpdateAsync(TEntity entity, UpdateOptions options = null)
         {
             var filter = Builders<TEntity>.Filter.Eq(e => e.Id, entity.Id);
-            await Collection.ReplaceOneAsync(filter, entity,options);
+            await Collection.ReplaceOneAsync(filter, entity, options);
             return entity;
         }
 
@@ -164,31 +190,36 @@ namespace Mongo.Demo.Core.Repository
             return entity;
         }
 
-        public virtual async Task<TEntity> UpdateAsync(TPrimaryKey id, Func<TEntity, Task> updateAction,UpdateOptions options = null)
+        public virtual async Task<TEntity> UpdateAsync(TPrimaryKey id, Func<TEntity, Task> updateAction,
+            UpdateOptions options = null)
         {
             var entity = await GetAsync(id);
             await updateAction(entity);
             return entity;
         }
 
-        public virtual void Update(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,UpdateOptions options = null)
+        public virtual void Update(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,
+            UpdateOptions options = null)
         {
-            Collection.UpdateMany(filter, update,options);
+            Collection.UpdateMany(filter, update, options);
         }
 
-        public virtual async Task UpdateAsync(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,UpdateOptions options = null)
+        public virtual async Task UpdateAsync(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,
+            UpdateOptions options = null)
         {
-            await Collection.UpdateManyAsync(filter, update,options);
-        }
-        
-        public virtual void UpdateOne(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,UpdateOptions options = null)
-        {
-             Collection.UpdateOne(filter, update,options);
+            await Collection.UpdateManyAsync(filter, update, options);
         }
 
-        public virtual async Task UpdateOneAsync(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,UpdateOptions options = null)
+        public virtual void UpdateOne(Expression<Func<TEntity, bool>> filter, UpdateDefinition<TEntity> update,
+            UpdateOptions options = null)
         {
-            await Collection.UpdateOneAsync(filter, update,options);
+            Collection.UpdateOne(filter, update, options);
+        }
+
+        public virtual async Task UpdateOneAsync(Expression<Func<TEntity, bool>> filter,
+            UpdateDefinition<TEntity> update, UpdateOptions options = null)
+        {
+            await Collection.UpdateOneAsync(filter, update, options);
         }
 
         public virtual void Delete(TEntity entity)
@@ -199,7 +230,7 @@ namespace Mongo.Demo.Core.Repository
         public virtual async Task DeleteAsync(TEntity entity)
         {
             var filter = Builders<TEntity>.Filter.Eq(e => e.Id, entity.Id);
-             await Collection.FindOneAndDeleteAsync(filter);
+            await Collection.FindOneAndDeleteAsync(filter);
         }
 
         public virtual void Delete(TPrimaryKey id)
@@ -221,7 +252,7 @@ namespace Mongo.Demo.Core.Repository
 
         public virtual async Task DeleteAsync(Expression<Func<TEntity, bool>> predicate)
         {
-            await  Collection.DeleteManyAsync(predicate);
+            await Collection.DeleteManyAsync(predicate);
         }
 
         public virtual void DeleteOne(Expression<Func<TEntity, bool>> predicate)
@@ -231,7 +262,7 @@ namespace Mongo.Demo.Core.Repository
 
         public virtual async Task DeleteOneAsync(Expression<Func<TEntity, bool>> predicate)
         {
-            await  Collection.DeleteOneAsync(predicate);
+            await Collection.DeleteOneAsync(predicate);
         }
 
 

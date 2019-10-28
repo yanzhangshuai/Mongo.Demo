@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 namespace Mongo.Demo.Core.Repository
 {
     [Serializable]
-    public class EntityNotFoundException:Exception
+    public class EntityNotFoundException : Exception
     {
         /// <summary>
         /// Type of the entity.
@@ -21,7 +21,6 @@ namespace Mongo.Demo.Core.Repository
         /// </summary>
         public EntityNotFoundException()
         {
-
         }
 
         /// <summary>
@@ -30,16 +29,14 @@ namespace Mongo.Demo.Core.Repository
         public EntityNotFoundException(SerializationInfo serializationInfo, StreamingContext context)
             : base(serializationInfo, context)
         {
-
         }
-        
+
         /// <summary>
         /// Creates a new <see cref="EntityNotFoundException"/> object.
         /// </summary>
         public EntityNotFoundException(Type entityType, object id)
             : this(entityType, id, null)
         {
-
         }
 
         /// <summary>
@@ -59,7 +56,6 @@ namespace Mongo.Demo.Core.Repository
         public EntityNotFoundException(string message)
             : base(message)
         {
-
         }
 
         /// <summary>
@@ -70,7 +66,6 @@ namespace Mongo.Demo.Core.Repository
         public EntityNotFoundException(string message, Exception innerException)
             : base(message, innerException)
         {
-
         }
     }
 }
